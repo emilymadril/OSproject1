@@ -17,7 +17,7 @@ void free_tokens(tokenlist *tokens);
 int main()
 {
 	while (1) {
-		printf("%s@%s : %s > ",getenv("USER"),getenv("MACHINE"),getenv("PWD"));
+		printf("%s@%s : %s> ",getenv("USER"),getenv("MACHINE"),getenv("PWD"));	//Part 3: Prompt
 
 		/* input contains the whole command
 		 * tokens contains substrings from input split by spaces
@@ -29,34 +29,38 @@ int main()
 		tokenlist *tokens = get_tokens(input);
 		
 		for (int i = 0; i < tokens->size; i++) {
-			char* token_item = (char *) malloc(sizeof(tokenlist));
-			if(strchr(tokens->items[i], '$') != NULL){
-				//free(tokens->items[i]);
+			if(strchr(tokens->items[i], '$') != NULL){							//Part 2: ($) Enviornment Variables
+				char* token_item = (char *) malloc(sizeof(tokenlist));
 				memcpy(token_item,tokens->items[i],sizeof(tokenlist));
 				char* new_token = getenv(++token_item);
+				free(tokens->items[i]);
 
 				tokens->items[i] = new_token;
 			}
-			if(strchr(tokens->items[i], '~') != NULL){
-				memcpy(token_item,tokens->items[i],sizeof(tokenlist));
-				char* new_token,tild_excess;;
+			if(strchr(tokens->items[i], '~') != NULL){							//Part 4: (~) tilden expansion
+				char* hold;
 
-				strtok(tokens->items[i],"~");
+				char* tild_excess = strtok(tokens->items[i],"~");
 				
-				tild_excess = *strtok(NULL," ");
+				while (hold != NULL){
+					tild_excess = strtok(NULL,NULL);
+				}
 
-				if(strlen(tild_excess) == 0)sprintf(new_token,"%s",getenv("HOME"));
+				char* new_token = (char *) malloc(sizeof(getenv("HOME")) + sizeof(tild_excess));
+
+				if(tild_excess == NULL)sprintf(new_token,"%s",getenv("HOME"));
 				else
-					sprintf(new_token,"%s%s",getenv("HOME"),&tild_excess);
+					sprintf(new_token,"%s%s",getenv("HOME"),tild_excess);
 
+				free(tokens->items[i]);
+				
 				tokens->items[i] = new_token;
 			}
 			printf("token %d: (%s)\n", i, tokens->items[i]);
-			//free(token_item);
 		}
 
 		free(input);
-		free_tokens(tokens);
+		free_tokens(tokens);   //Memory allocation error caused from changing $ token, ~ seems to not have issue
 	}
 
 	return 0;
@@ -129,7 +133,7 @@ tokenlist *get_tokens(char *input)
 void free_tokens(tokenlist *tokens)
 {
 	for (int i = 0; i < tokens->size; i++)
-		free(&tokens->items[i]);
+		free(tokens->items[i]);
 
 	free(tokens);
 }
