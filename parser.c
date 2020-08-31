@@ -17,7 +17,7 @@ void free_tokens(tokenlist *tokens);
 int main()
 {
 	while (1) {
-		printf("> ");
+		printf("%s@%s : %s > ",getenv("USER"),getenv("MACHINE"),getenv("PWD"));
 
 		/* input contains the whole command
 		 * tokens contains substrings from input split by spaces
@@ -27,8 +27,32 @@ int main()
 		printf("whole input: %s\n", input);
 
 		tokenlist *tokens = get_tokens(input);
+		
 		for (int i = 0; i < tokens->size; i++) {
+			char* token_item = (char *) malloc(sizeof(tokenlist));
+			if(strchr(tokens->items[i], '$') != NULL){
+				//free(tokens->items[i]);
+				memcpy(token_item,tokens->items[i],sizeof(tokenlist));
+				char* new_token = getenv(++token_item);
+
+				tokens->items[i] = new_token;
+			}
+			if(strchr(tokens->items[i], '~') != NULL){
+				memcpy(token_item,tokens->items[i],sizeof(tokenlist));
+				char* new_token,tild_excess;;
+
+				strtok(tokens->items[i],"~");
+				
+				tild_excess = *strtok(NULL," ");
+
+				if(strlen(tild_excess) == 0)sprintf(new_token,"%s",getenv("HOME"));
+				else
+					sprintf(new_token,"%s%s",getenv("HOME"),&tild_excess);
+
+				tokens->items[i] = new_token;
+			}
 			printf("token %d: (%s)\n", i, tokens->items[i]);
+			//free(token_item);
 		}
 
 		free(input);
@@ -105,7 +129,7 @@ tokenlist *get_tokens(char *input)
 void free_tokens(tokenlist *tokens)
 {
 	for (int i = 0; i < tokens->size; i++)
-		free(tokens->items[i]);
+		free(&tokens->items[i]);
 
 	free(tokens);
 }
