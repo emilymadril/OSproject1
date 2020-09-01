@@ -13,6 +13,7 @@ tokenlist *get_tokens(char *input);
 tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
+int envVar (tokenlist *tokens);
 
 int main()
 {
@@ -27,16 +28,13 @@ int main()
 		printf("whole input: %s\n", input);
 
 		tokenlist *tokens = get_tokens(input);
+
+		if(envVar(tokens) == -1){
+			printf("ERROR: Enviroment Variable not found\n");
+			continue;
+		}
 		
 		for (int i = 0; i < tokens->size; i++) {
-			if(strchr(tokens->items[i], '$') != NULL){							//Part 2: ($) Enviornment Variables
-				char* token_item = (char *) malloc(sizeof(tokenlist));
-				memcpy(token_item,tokens->items[i],sizeof(tokenlist));
-				char* new_token = getenv(++token_item);
-				free(tokens->items[i]);
-
-				tokens->items[i] = new_token;
-			}
 			if(strchr(tokens->items[i], '~') != NULL){							//Part 4: (~) tilden expansion
 				char* hold;
 
@@ -53,7 +51,6 @@ int main()
 					sprintf(new_token,"%s%s",getenv("HOME"),tild_excess);
 
 				free(tokens->items[i]);
-				
 				tokens->items[i] = new_token;
 			}
 			printf("token %d: (%s)\n", i, tokens->items[i]);
@@ -64,6 +61,38 @@ int main()
 	}
 
 	return 0;
+}
+
+int envVar (tokenlist *tokens)   		//Part 2: Enviornment Variables ($) return -1 on failure, 0 on success
+{
+	char *temp = NULL;
+	char *buffer = NULL;
+	char *tempItem = NULL;
+	for (int i = 0; i < tokens->size; i++){
+		tempItem = (char *) malloc(strlen(tokens->items[i]));
+		strcpy(tempItem, tokens->items[i]);
+    	if (memchr(tempItem, '$', 1) != NULL){
+			//Removing the '$' from the token
+			temp = (char *) malloc(strlen(tempItem) - 1);
+			strncpy(temp, (tempItem + 1), strlen(tempItem));
+			//Getting the enviroment variable
+			char* env_var = getenv(temp);
+			if(env_var == NULL)return -1;
+			else{
+				buffer = (char *) malloc(strlen(getenv(temp)));
+				strcpy(buffer, getenv(temp));
+
+				//changing the space of the items and inputting the new string
+				tokens->items[i] = (char *) realloc(tokens->items[i], strlen(buffer) + 1);
+				strcpy(tokens->items[i], buffer);
+
+				free(buffer);
+			}
+    	}
+		free(tempItem);
+		free(temp);
+ 	 }
+ 	 return 0;
 }
 
 tokenlist *new_tokenlist(void)
