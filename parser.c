@@ -14,6 +14,7 @@ tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
 int envVar (tokenlist *tokens);
+int tildenExp (tokenlist *tokens);
 
 int main()
 {
@@ -29,30 +30,17 @@ int main()
 
 		tokenlist *tokens = get_tokens(input);
 
-		if(envVar(tokens) == -1){
+		if(envVar(tokens) == -1){												//Part 2: ($) Enviornment Variables
 			printf("ERROR: Enviroment Variable not found\n");
+			continue;
+		}
+		if(tildenExp(tokens) == -1){											//Part 4: (~) tilden expansion
+			printf("ERROR: ~ Not followed by / for Path\n");
 			continue;
 		}
 		
 		for (int i = 0; i < tokens->size; i++) {
-			if(strchr(tokens->items[i], '~') != NULL){							//Part 4: (~) tilden expansion
-				char* hold;
-
-				char* tild_excess = strtok(tokens->items[i],"~");
-				
-				while (hold != NULL){
-					tild_excess = strtok(NULL,NULL);
-				}
-
-				char* new_token = (char *) malloc(sizeof(getenv("HOME")) + sizeof(tild_excess));
-
-				if(tild_excess == NULL)sprintf(new_token,"%s",getenv("HOME"));
-				else
-					sprintf(new_token,"%s%s",getenv("HOME"),tild_excess);
-
-				free(tokens->items[i]);
-				tokens->items[i] = new_token;
-			}
+			
 			printf("token %d: (%s)\n", i, tokens->items[i]);
 		}
 
@@ -63,7 +51,7 @@ int main()
 	return 0;
 }
 
-int envVar (tokenlist *tokens)   		//Part 2: Enviornment Variables ($) return -1 on failure, 0 on success
+int envVar (tokenlist *tokens)   		//Enviornment Variables ($) return -1 on failure, 0 on success
 {
 	char *temp = NULL;
 	char *buffer = NULL;
@@ -75,12 +63,13 @@ int envVar (tokenlist *tokens)   		//Part 2: Enviornment Variables ($) return -1
 			//Removing the '$' from the token
 			temp = (char *) malloc(strlen(tempItem) - 1);
 			strncpy(temp, (tempItem + 1), strlen(tempItem));
+
 			//Getting the enviroment variable
 			char* env_var = getenv(temp);
 			if(env_var == NULL)return -1;
 			else{
 				buffer = (char *) malloc(strlen(getenv(temp)));
-				strcpy(buffer, getenv(temp));
+				strcpy(buffer, env_var);
 
 				//changing the space of the items and inputting the new string
 				tokens->items[i] = (char *) realloc(tokens->items[i], strlen(buffer) + 1);
@@ -93,6 +82,30 @@ int envVar (tokenlist *tokens)   		//Part 2: Enviornment Variables ($) return -1
 		free(temp);
  	 }
  	 return 0;
+}
+
+int tildenExp(tokenlist *tokens)								//(~) tilden expansion return -1 on failure, 0 on success
+{
+	for (int i = 0; i < tokens->size; i++){
+		if(strchr(tokens->items[i], '~') != NULL){							
+			char* hold;
+
+			char* tild_excess = strtok(tokens->items[i],"~");
+				
+			while (hold != NULL){
+				tild_excess = strtok(NULL,NULL);
+			}
+
+			char* new_token = (char *) malloc(sizeof(getenv("HOME")) + sizeof(tild_excess));
+
+			if(tild_excess == NULL)sprintf(new_token,"%s",getenv("HOME"));
+			else
+				sprintf(new_token,"%s%s",getenv("HOME"),tild_excess);
+
+			tokens->items[i] = new_token;
+		}
+	}
+	return 0;
 }
 
 tokenlist *new_tokenlist(void)
