@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 typedef struct {
 	int size;
@@ -13,6 +15,7 @@ tokenlist *get_tokens(char *input);
 tokenlist *new_tokenlist(void);
 void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
+void pathSearch();
 
 int main()
 {
@@ -39,29 +42,27 @@ int main()
 				tempItem = (char *) malloc(strlen(tokens->items[i]));
 				strcpy(tempItem, tokens->items[i]);
 
-    			if (memchr(tempItem, '$', 1) != NULL){
-					//Removing the '$' from the token
-					temp = (char *) malloc(strlen(tempItem) - 1);
-					strncpy(temp, (tempItem + 1), strlen(tempItem));
+				//Removing the '$' from the token
+				temp = (char *) malloc(strlen(tempItem) - 1);
+				strncpy(temp, (tempItem + 1), strlen(tempItem));
 
-					//Getting the enviroment variable
-					char* env_var = getenv(temp);
-					if(env_var == NULL){
-						//error message
-						error = 1;
-						break;
-					}
-					else{
-						buffer = (char *) malloc(strlen(getenv(temp)));
-						strcpy(buffer, env_var);
+				//Getting the enviroment variable
+				char* env_var = getenv(temp);
+				if(env_var == NULL){
+					printf("Evironment Variable (%s) not found\n",tokens->items[i]);
+					error = 1;
+					break;
+				}
+				else{
+					buffer = (char *) malloc(strlen(getenv(temp)));
+					strcpy(buffer, env_var);
 
-						//changing the space of the items and inputting the new string
-						tokens->items[i] = (char *) realloc(tokens->items[i], strlen(buffer) + 1);
-						strcpy(tokens->items[i], buffer);
+					//changing the space of the items and inputting the new string
+					tokens->items[i] = (char *) realloc(tokens->items[i], strlen(buffer) + 1);
+					strcpy(tokens->items[i], buffer);
 
-						free(buffer);
-					}
-    			}
+					free(buffer);
+				}
 				free(tempItem);
 				free(temp);
 			}
@@ -71,26 +72,34 @@ int main()
 				char* tild_excess = (char *) malloc(strlen(hold)-1);
 				strncpy(tild_excess, (hold + 1),strlen(hold)-1);
 				free(hold);
-
-				char* new_token = (char *) malloc(strlen(getenv("HOME")) + strlen(tild_excess));
-				free(tild_excess);
 				/*
 					if(tild excess isnt a valid path)
 						throw error message
 						error = 2
 						break
 				*/
-
-				if(tild_excess == NULL)sprintf(new_token,"%s",getenv("HOME"));
-				else
+				char* new_token;
+				if(tild_excess == NULL){
+					new_token = (char *) malloc(strlen(getenv("HOME")));
+					sprintf(new_token,"%s",getenv("HOME"));
+				}
+				else{
+					new_token = (char *) malloc(strlen(getenv("HOME")) + strlen(tild_excess));
 					sprintf(new_token,"%s%s",getenv("HOME"),tild_excess);	
+				}
 
-				tokens->items[i] = (char *) realloc(tokens->items[i], strlen(new_token) + 1);
+				tokens->items[i] = (char *) realloc(tokens->items[i], strlen(new_token));
 				strcpy(tokens->items[i], new_token);
 
+				free(tild_excess);
 				free(new_token);
 			}	
 			printf("token %d: (%s)\n", i, tokens->items[i]);
+
+			if(strcmp(tokens->items[i],"ls") == 0){
+				pathSearch();
+			}
+
 		}
 		if(error != 0)continue;
 
@@ -101,11 +110,48 @@ int main()
 	return 0;
 }
 
+void pathSearch()															//Part 5-6: Path Search and ls execv
+{
+	int found = 0;
+	tokenlist *new_list = new_tokenlist();
+	char *path = getenv("PATH");
+
+	char *path_token = strtok(path, ":");
+	while (path_token != NULL) {
+		add_token(new_list, path_token);
+		path_token = strtok(NULL, ":");
+	}
+	char* ls_file;
+	for(int i = 0; i < new_list->size; i++){		
+		ls_file = (char*)malloc(strlen(new_list->items[i]) + 3);		
+		sprintf(ls_file,"%s/ls",new_list->items[i]);
+
+		if(access(ls_file,F_OK) != 0){							//if found in path run command
+			found = 1;
+			int pid = fork();
+			if(pid == 0){				//in child
+				execv(ls_file,NULL);
+			}
+			else{						//in parent(main)
+				waitpid(pid,NULL,0);
+				free(ls_file);
+			}
+			free_tokens(new_list);
+			break;
+		}
+	}
+	if(found == 0){
+		//Not found in path check if it's a file in one of path directories
+	}
+	free_tokens(new_list);
+}
+
 tokenlist *new_tokenlist(void)
 {
 	tokenlist *tokens = (tokenlist *) malloc(sizeof(tokenlist));
 	tokens->size = 0;
-	tokens->items = NULL;
+	tokens->items = (char **) malloc(sizeof(char *));
+	tokens->items[0] = NULL; /* make NULL terminated */
 	return tokens;
 }
 
@@ -113,8 +159,9 @@ void add_token(tokenlist *tokens, char *item)
 {
 	int i = tokens->size;
 
-	tokens->items = (char **) realloc(tokens->items, (i + 1) * sizeof(char *));
+	tokens->items = (char **) realloc(tokens->items, (i + 2) * sizeof(char *));
 	tokens->items[i] = (char *) malloc(strlen(item) + 1);
+	tokens->items[i + 1] = NULL;
 	strcpy(tokens->items[i], item);
 
 	tokens->size += 1;
