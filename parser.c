@@ -69,7 +69,7 @@ int main()
 			if(strchr(tokens->items[i], '~') != NULL){							//Part 4: Tilden Expansion(~)			
 				char* hold = (char *) malloc(strlen(tokens->items[i]));
 				strcpy(hold,tokens->items[i]);
-				char* tild_excess = (char *) malloc(strlen(hold)-1);
+				char* tild_excess = (char *) malloc(strlen(hold));
 				strncpy(tild_excess, (hold + 1),strlen(hold)-1);
 				free(hold);
 				/*
@@ -122,15 +122,17 @@ void pathSearch()															//Part 5-6: Path Search and ls execv
 		path_token = strtok(NULL, ":");
 	}
 	char* ls_file;
-	for(int i = 0; i < new_list->size; i++){		
+	
+	for(int i = 0; i < new_list->size; i++){
 		ls_file = (char*)malloc(strlen(new_list->items[i]) + 3);		
 		sprintf(ls_file,"%s/ls",new_list->items[i]);
-
-		if(access(ls_file,F_OK) != 0){							//if found in path run command
+		
+		if(access(ls_file,F_OK) == 0){							//if found in path run command
 			found = 1;
 			int pid = fork();
 			if(pid == 0){				//in child
-				execv(ls_file,NULL);
+				char *argv[] = {ls_file,NULL};
+				execv(ls_file,argv);
 			}
 			else{						//in parent(main)
 				waitpid(pid,NULL,0);
@@ -142,8 +144,8 @@ void pathSearch()															//Part 5-6: Path Search and ls execv
 	}
 	if(found == 0){
 		//Not found in path check if it's a file in one of path directories
+		free_tokens(new_list);
 	}
-	free_tokens(new_list);
 }
 
 tokenlist *new_tokenlist(void)
