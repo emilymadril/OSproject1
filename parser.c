@@ -5,6 +5,7 @@
 	#include <sys/wait.h>
 	#include <fcntl.h>
 
+	//***********************************************
 	typedef struct {
 		int size;
 		char **items;
@@ -16,6 +17,9 @@
 	tokenlist *new_tokenlist(void);
 	void add_token(tokenlist *tokens, char *item);
 	void free_tokens(tokenlist *tokens);
+	//***********************************************
+
+
 	void pathSearch(tokenlist *tokens, int loc, int *err);
 	void replaceTokens (tokenlist *tokens, int *error, tokenlist *paths);
 	tokenlist *getPaths(void);
@@ -24,8 +28,14 @@
 	void output_redirect(char* file);
 	void input_redirect(char* file);
 
+	int pipe_func(tokenlist * token_ptr);
+
+	int check_built(char *);
+	void built_in(tokenlist * token_ptr, int x);
+
 	void exit_func(int);
 	void change_directory(tokenlist * tknptr);
+	void echo(tokenlist * token_ptr);
 
 	int main()
 	{
@@ -42,10 +52,6 @@
 			char *input = get_input();
 			printf("whole input: %s\n", input);
 
-			if (strncmp(input, "exit", 4) == 0)
-			{
-				printf("Commands executed: ");
-	    }
 
 			tokenlist *paths = getPaths();
 			tokenlist *tokens = get_tokens(input);
@@ -62,6 +68,16 @@
 						pathSearch(tokens, i, error);
 					}
 				}
+			}
+
+			if(check_built(tokens->items[0]) == 0)
+			{
+				fflush(0);
+				execute(&tokens->items[0]);
+			}
+			else
+			{
+				built_in(&tokens, tokens->size);
 			}
 
 			free(input);
@@ -198,6 +214,8 @@
 		}
 	}
 
+	//*************************************************************************
+
 	tokenlist *new_tokenlist(void)
 	{
 		tokenlist *tokens = (tokenlist *) malloc(sizeof(tokenlist));
@@ -271,6 +289,7 @@
 
 		free(tokens);
 	}
+	//*************************************************************************
 
 	void replaceTokens (tokenlist *tokens, int *error, tokenlist *paths)
 	{
@@ -393,8 +412,32 @@
 		return paths;
 	}
 
-	/*
-	void exit_func(int size)                            //starting part 10
+	int check_built(char * command)									//part 10
+	{
+		if(strcmp(command, "exit") == 0 || strcmp(command, "cd") == 0 || strcmp(command, "echo") == 0)
+			return 1;
+		else
+			return 0;
+	}
+
+	void built_in(tokenlist * token_ptr, int x)
+	{
+		if(strcmp(token_ptr->items[0], "exit") == 0)
+		{
+			exit_func(x);
+		}
+		if(strcmp(token_ptr->items[0], "cd") == 0)
+		{
+			change_directory(token_ptr);
+		}
+		if(strcmp(token_ptr->items[0], "echo") == 0)
+		{
+			echo(token_ptr);
+		}
+
+	}
+
+	void exit_func(int size)
 	{
 	    printf("Commands executed : %d\n", size);
 	    exit(0);
@@ -416,13 +459,39 @@
 	        printf("Error. Too many arguments.\n");
 	    }
 
+	    /*
 	    else
 	    {
 	        char* newdirectory = (char*) calloc(100, 100);
 
-	    }
+	    }*/
 	}
-	*/
+
+	void echo(tokenlist * token_ptr)
+	{
+		char * tempvar;
+		char * permvar;
+		char * var;
+		for (int i = 0; i < token_ptr->size; i++)
+		{
+			if(token_ptr->items[i][0] == '$')
+			{
+				tempvar = strtok(token_ptr->items[i], "$");
+				permvar = getenv(tempvar);
+
+				if(permvar != NULL)
+				{
+					printf("%s", permvar);
+				}
+			}
+			else
+			{
+				printf("%s", token_ptr->items[i]);
+			}
+		}
+		printf("\n");
+	}
+
 	void output_redirect(char* file)                     //starting part 7
 	{
 	    int fd = open(file, O_WRONLY | O_CREAT);
@@ -442,6 +511,21 @@
 	    close(STDIN_FILENO);
 	    dup(fd);
 	    close(fd);
+	}
+
+	int pipe_func(tokenlist * token_ptr)
+	{
+		int num_pipes = 0;
+
+		for (int i = 0; i < token_ptr->size; i++)
+		{
+			if(token_ptr->items[i][0] == '|')
+				num_pipes++;
+		}
+		if(num_pipes == 1)
+		{
+
+		}
 	}
 
 	int path_resolution(char* file)
