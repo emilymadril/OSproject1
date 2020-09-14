@@ -188,7 +188,7 @@ void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs, backlist * p
       path_token = strtok(NULL, ":");
     }
     //For each path adding on the token to the path
-    fd = open(outputFile, O_RDWR | O_CREAT);
+    fd = open(outputFile, O_RDWR | O_CREAT, 0777);
 
     if(path_resolution(inputFile) == 0 && inputFLG == 1)
     {
