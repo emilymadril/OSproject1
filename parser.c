@@ -490,7 +490,10 @@ void change_directory(tokenlist * tokenptr)
 
     if(tokenptr->size == 2)             //user enters cd
     {
-      chdir(tokenptr->items[1]);
+      if(chdir(tokenptr->items[1]) == -1){
+      	printf("The directory specified in path does not exist\n");
+      	return;
+      }
       char* curWD = (char * ) malloc(strlen(getcwd(NULL,0)) + 1);
       strcpy(curWD, getcwd(NULL, 0));
       setenv("PWD", curWD, 1);
@@ -500,14 +503,9 @@ void change_directory(tokenlist * tokenptr)
     else if(tokenptr->size > 2)         //user enters too many args
     {
         printf("Error. Too many arguments.\n");
+        *err = 2;
+        return;
     }
-
-    /*
-    else
-    {
-        char* newdirectory = (char*) calloc(100, 100);
-
-    }*/
 }
 
 void print_jobs(tokenlist * token_ptr, int * numComs)		//not sure if this is right
