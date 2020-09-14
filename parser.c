@@ -141,8 +141,8 @@ void pathSearch(tokenlist *tokens, int loc, int *err)
       if(i != tokens->size && outputFLG == 0 && inputFLG == 0)
       add_token(args, tokens->items[i]);
     }
-    printf("outputFile: %s\n", outputFile);
-    printf("inputFile: %s\n", inputFile);
+    // printf("outputFile: %s\n", outputFile);
+    // printf("inputFile: %s\n", inputFile);
     //Storing all the path variables in path
     int found = 0;
     tokenlist *new_list = new_tokenlist();
@@ -541,7 +541,7 @@ void absPath(tokenlist * tokens, int *error, tokenlist *paths)
 void echo(tokenlist * tokens)
 {
   for (int i = 1; i < tokens->size; i++)printf("%s ",tokens->items[i]);
-  
+
   printf("\n");
 }
 
@@ -609,15 +609,16 @@ int pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths)
 
       }
 
-      for (int i =0; i < com1->size; i++)
-        printf("token(%d): %s\n", i, com1->items[i]);
-      for (int i =0; i < com2->size; i++)
-        printf("token(%d): %s\n", i, com2->items[i]);
-      for (int i =0; i < com3->size; i++)
-        printf("token(%d): %s\n", i, com3->items[i]);
+      // for (int i =0; i < com1->size; i++)
+      //   printf("token(%d): %s\n", i, com1->items[i]);
+      // for (int i =0; i < com2->size; i++)
+      //   printf("token(%d): %s\n", i, com2->items[i]);
+      // for (int i =0; i < com3->size; i++)
+      //   printf("token(%d): %s\n", i, com3->items[i]);
 
-      int p_fds[2];
+      int p_fds[2], p_fds2[2];
       pipe(p_fds);
+			pipe(p_fds2);
 
       int pid1 = fork();
       if (pid1 == 0)
@@ -633,23 +634,69 @@ int pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths)
       }//0 = output 1 = input
       else
       {
-          int pid2 = fork();
-          if(pid1 == 0)
-          {
-            close(STDIN_FILENO);
-            dup(p_fds[0]);
-            close(p_fds[1]);
-            close(p_fds[0]);
-            execv(com2->items[0], com2->items);
-            exit(1);
-          }
-          else
-          {
-            close(p_fds[1]);
-            close(p_fds[0]);
-            waitpid(pid1, NULL, 0);
-            waitpid(pid2, NULL, 0);
-          }
+				if (num_pipes == 1)
+				{
+					int pid2 = fork();
+					if(pid2 == 0)
+					{
+						close(STDIN_FILENO);
+						dup(p_fds[0]);
+						close(p_fds[1]);
+						close(p_fds[0]);
+						execv(com2->items[0], com2->items);
+						exit(1);
+					}
+					else
+					{
+						close(p_fds[1]);
+						close(p_fds[0]);
+						waitpid(pid1, NULL, 0);
+						waitpid(pid2, NULL, 0);
+					}
+				}
+				else
+				{
+					int pid2 = fork();
+					if (pid2 == 0)
+					{
+						close(STDIN_FILENO);
+						dup(p_fds[0]);
+						close(STDOUT_FILENO);
+						dup(p_fds2[1]);
+
+						close(p_fds2[0]);
+						close(p_fds2[1]);
+						close(p_fds[0]);
+						close(p_fds[1]);
+						execv(com2->items[0], com2->items);
+						exit(1);
+					}
+					else
+					{
+						close(p_fds[0]);
+						close(p_fds[1]);
+
+						int pid3 = fork();
+						if (pid3 == 0)
+						{
+							close(STDIN_FILENO);
+							dup(p_fds2[0]);
+
+							close(p_fds2[0]);
+							close(p_fds2[1]);
+							execv(com3->items[0], com3->items);
+							exit(1);
+						}
+						else
+						{
+							close(p_fds2[0]);
+							close(p_fds2[1]);
+							waitpid(pid1, NULL, 0);
+							waitpid(pid2, NULL, 0);
+							waitpid(pid3, NULL, 0);
+						}
+					}
+				}
       }
         free_tokens(com1);
         free_tokens(com2);
