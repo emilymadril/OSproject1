@@ -28,7 +28,9 @@ int path_resolution(char* file);
 void output_redirect(char* file);
 void input_redirect(char* file);
 
-int pipe_func(tokenlist * token_ptr);
+int pipe_func(tokenlist * token_ptr, int * error, tokenlist *paths);
+int check_pipe(tokenlist* token_ptr);
+void absPath(tokenlist * tokens, int *error, tokenlist *paths);
 
 int check_built(char *);
 void built_in(tokenlist * token_ptr, int x);
@@ -56,6 +58,8 @@ int main()
     tokenlist *paths = getPaths();
     tokenlist *tokens = get_tokens(input);
     replaceTokens(tokens, error, paths);
+    if(check_pipe(tokens) == 1)
+      pipe_func(tokens, error, paths);
 
     if (*error == 0)
     {
@@ -63,7 +67,7 @@ int main()
       {
         printf("token %d: (%s)\n", i, tokens->items[i]);
 
-        if(memchr(tokens->items[i], '/', strlen(tokens->items[i])) == NULL && i == 0)
+        if(memchr(tokens->items[i], '/', strlen(tokens->items[i])) == NULL && i == 0 && check_pipe(tokens) == 0)
         {
           pathSearch(tokens, i, error);
         }
@@ -86,7 +90,7 @@ int main()
     free_tokens(paths);
     */
   }
-  
+
 
   return 0;
 }
@@ -477,6 +481,62 @@ void change_directory(tokenlist * tokenptr)
 
     }*/
 }
+//changes all commands to full path for easier parsing
+void absPath(tokenlist * tokens, int *error, tokenlist *paths)
+{
+  char *temp = NULL;
+  char *buffer = NULL;
+  char *tempItem = NULL;
+  char *tempPath = NULL;
+  int pipeFLG = 0;
+  int found = 0;
+  for (int i = 0; i < tokens->size; i++)
+  {
+    found = 0;
+    tempItem = (char *) malloc(strlen(tokens->items[i]));
+    strcpy(tempItem, tokens->items[i]);
+    if (memchr(tempItem, '|', 1) != NULL)
+    {
+      pipeFLG = 0;
+    }
+    if( memchr(tempItem, '/', strlen(tempItem)) == NULL && strcmp(tempItem, "|") != 0 && pipeFLG == 0)
+    {
+      pipeFLG = 1;
+      for (int j = 0; j < paths->size; j++)
+      {
+        //getting the path variable
+        tempPath = (char *) malloc(strlen(paths->items[j]) + 1);
+        strcpy(tempPath, paths->items[j]);
+
+        //buffer is now ./Path/token->item[i]
+        buffer = (char *) malloc(strlen(tempPath) + strlen(tokens->items[i]) + 2);
+        strcpy(buffer, paths->items[j]);
+        strcat(buffer, "/");
+        strcat(buffer, tokens->items[i]);
+        if (access(buffer, F_OK) == 0)
+        {
+          found = 1;
+          break;
+        }
+        free(buffer);
+        free(tempPath);
+      }
+      if (found == 1)
+      {
+        tokens->items[i] = (char *) realloc(tokens->items[i], strlen(buffer) + 1);
+        strcpy(tokens->items[i], buffer);
+        free(buffer);
+        free(tempPath);
+      }
+      else
+      {
+        printf("Cannot find Command %s", tokens->items[i]);
+        *error = 1;
+      }
+    }
+    free(tempItem);
+  }
+}
 
 void echo(tokenlist * token_ptr)
 {
@@ -503,40 +563,131 @@ void echo(tokenlist * token_ptr)
   printf("\n");
 }
 
-void output_redirect(char* file)                     //starting part 7
-{
-    int fd = open(file, O_WRONLY | O_CREAT);
-    close(STDOUT_FILENO);
-    dup(fd);
-    close(fd);
-}
-
-void input_redirect(char* file)
-{
-    int fd = open(file, O_RDWR);
-    if(path_resolution(file) == 0)
-    {
-        printf("Error. File does not exist\n");
-    }
-
-    close(STDIN_FILENO);
-    dup(fd);
-    close(fd);
-}
-
-int pipe_func(tokenlist * token_ptr)
+int pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths)
 {
   int num_pipes = 0;
-
-  for (int i = 0; i < token_ptr->size; i++)
+  int arr[2];
+  tokenlist *com1 = new_tokenlist();
+  tokenlist *com2 = new_tokenlist();
+  tokenlist *com3 = new_tokenlist();
+  absPath(token_ptr, error, paths);
+  if (*error != 1)
   {
-    if(token_ptr->items[i][0] == '|')
-      num_pipes++;
-  }
-  if(num_pipes == 1)
-  {
+      for (int i = 0; i < token_ptr->size; i++)
+      {
+        if(token_ptr->items[i][0] == '|')
+        {
+          if(token_ptr->items[i+1] == NULL)
+          {
+            *error = 2;
+            printf("Nothing to pipe to\n");
+            break;
+          }
+          arr[num_pipes] = i;
+          num_pipes++;
+        }
+      }
 
+      for(int i =0; i < token_ptr->size; i++)
+      {
+        if (num_pipes == 2)
+        {
+          if (i < arr[0])
+          {
+            if (i == arr[0])
+            continue;
+            add_token(com1, token_ptr->items[i]);
+          }
+          if (i < arr[1] && i > arr[0])
+          {
+            if (i == arr[1])
+            continue;
+            add_token(com2, token_ptr->items[i]);
+          }
+          if (i > arr[1])
+          {
+            add_token(com3, token_ptr->items[i]);
+          }
+        }
+        else
+        {
+          if (i < arr[0])
+          {
+            if (i == arr[0])
+            continue;
+            add_token(com1, token_ptr->items[i]);
+          }
+          if (i > arr[0])
+          {
+            if (i == arr[1])
+            continue;
+            add_token(com2, token_ptr->items[i]);
+          }
+        }
+
+      }
+
+      for (int i =0; i < com1->size; i++)
+        printf("token(%d): %s\n", i, com1->items[i]);
+      for (int i =0; i < com2->size; i++)
+        printf("token(%d): %s\n", i, com2->items[i]);
+      for (int i =0; i < com3->size; i++)
+        printf("token(%d): %s\n", i, com3->items[i]);
+
+      int p_fds[2];
+      pipe(p_fds);
+
+      int pid1 = fork();
+      if (pid1 == 0)
+      {
+        close(STDOUT_FILENO);
+        dup(p_fds[1]);
+
+        close(p_fds[0]);
+        close(p_fds[1]);
+
+        execv(com1->items[0], com1->items);
+        exit(1);
+      }//0 = output 1 = input
+      else
+      {
+          int pid2 = fork();
+          if(pid1 == 0)
+          {
+            close(STDIN_FILENO);
+            dup(p_fds[0]);
+            close(p_fds[1]);
+            close(p_fds[0]);
+            execv(com2->items[0], com2->items);
+            exit(1);
+          }
+          else
+          {
+            close(p_fds[1]);
+            close(p_fds[0]);
+            waitpid(pid1, NULL, 0);
+            waitpid(pid2, NULL, 0);
+          }
+      }
+        free_tokens(com1);
+        free_tokens(com2);
+        free_tokens(com3);
   }
+  else if(*error == 1)
+  {
+    printf("Invalid Command\n");
+  }
+}
+//If there is a pipe in the tokens reutrn 1 else 0
+int check_pipe(tokenlist* token_ptr)
+{
+  for (int i =0; i < token_ptr->size; i++)
+  {
+    if(memchr(token_ptr->items[i], '|', 1) != NULL)
+      return 1;
+  }
+
+  return 0;
 }
 
 int path_resolution(char* file)
