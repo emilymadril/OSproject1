@@ -27,9 +27,13 @@ Contents of tar archive: parser.c (source code), makefile, and README
   makefile: Contains script to compile parser.c and create an executable called shell
   
 Compile directions:
+
   1.) extract the tar file into an empty folder on tectia, make sure you're on linprog
+  
   2.) enter "make" on the command line
+  
   3.) enter "shell" to start the program
+  
 
 Known bugs:
 
