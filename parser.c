@@ -69,8 +69,6 @@ int main()
      */
 
     char *input = get_input();
-    printf("whole input: %s\n", input);
-
 
     tokenlist *paths = getPaths();
     tokenlist *tokens = get_tokens(input);
@@ -82,7 +80,6 @@ int main()
     {
       for (int i = 0; i < tokens->size; i++)
       {
-        // printf("token %d: (%s)\n", i, tokens->items[i]);
 
         if(memchr(tokens->items[i], '/', strlen(tokens->items[i])) == NULL && i == 0 && check_pipe(tokens) == 0)
         {
@@ -106,8 +103,6 @@ int main()
       }
 
     }
-    // printf("numComs: %d\n", *numComs);
-
 
     free(input);
     free_tokens(tokens);
@@ -173,8 +168,7 @@ void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs, backlist * p
       if(i != tokens->size && outputFLG == 0 && inputFLG == 0)
       add_token(args, tokens->items[i]);
     }
-    // printf("outputFile: %s\n", outputFile);
-    // printf("inputFile: %s\n", inputFile);
+    
     //Storing all the path variables in path
     int found = 0;
     tokenlist *new_list = new_tokenlist();
@@ -408,42 +402,6 @@ void replaceTokens (tokenlist *tokens, int *error, tokenlist *paths)
       free(buffer);
       free(temp);
     }
-    /*
-    else if( memchr(tempItem, '/', strlen(tempItem)) == NULL )
-    {
-      for (int j = 0; j < paths->size; j++)
-      {
-        //getting the path variable
-        tempPath = (char *) malloc(strlen(paths->items[j]) + 1);
-        strcpy(tempPath, paths->items[j]);
-
-        //buffer is now ./Path/token->item[i]
-        buffer = (char *) malloc(strlen(tempPath) + strlen(tokens->items[i]) + 2);
-        strcpy(buffer, paths->items[j]);
-        strcat(buffer, "/");
-        strcat(buffer, tokens->items[i]);
-        if (access(buffer, F_OK) == 0)
-        {
-          found = 1;
-          break;
-        }
-          free(buffer);
-          free(tempPath);
-      }
-      if (found == 1)
-      {
-        tokens->items[i] = (char *) realloc(tokens->items[i], strlen(buffer) + 1);
-        strcpy(tokens->items[i], buffer);
-        free(buffer);
-        free(tempPath);
-      }
-      else
-      {
-        printf("Cannot find Command %s", tokens->items[i]);
-        *error = 1;
-      }
-    }
-    */
 
     free(tempItem);
 
@@ -682,13 +640,6 @@ void pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths, int * numCom
         }
 
       }
-
-      // for (int i =0; i < com1->size; i++)
-      //   printf("token(%d): %s\n", i, com1->items[i]);
-      // for (int i =0; i < com2->size; i++)
-      //   printf("token(%d): %s\n", i, com2->items[i]);
-      // for (int i =0; i < com3->size; i++)
-      //   printf("token(%d): %s\n", i, com3->items[i]);
 
       int p_fds[2], p_fds2[2];
       pipe(p_fds);
