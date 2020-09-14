@@ -19,7 +19,6 @@ void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
 //***********************************************
 
-
 void pathSearch(tokenlist *tokens, int loc, int *err, int *numComs);
 void replaceTokens (tokenlist *tokens, int *error, tokenlist *paths);
 tokenlist *getPaths(void);
@@ -28,7 +27,7 @@ int path_resolution(char* file);
 void output_redirect(char* file);
 void input_redirect(char* file);
 
-int pipe_func(tokenlist * token_ptr, int * error, tokenlist *paths, int * numComs);
+void pipe_func(tokenlist * token_ptr, int * error, tokenlist *paths, int * numComs);
 int check_pipe(tokenlist* token_ptr);
 void absPath(tokenlist * tokens, int *error, tokenlist *paths);
 
@@ -44,7 +43,9 @@ int main()
 {
   int *error = malloc(sizeof(int));
   int *numComs = malloc(sizeof(int));
+	int *pid1 = malloc(sizeof(int));
       *numComs = 0;
+
   while (1)
   {
 
@@ -94,13 +95,24 @@ int main()
 }
 
 //Part 5-6: Path Search and ls execv
-void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs)
+void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs, pidlist * backgroundProcList)
 {
   char *outputFile = NULL;
   char *inputFile = NULL;
-  int outputFLG = 0, inputFLG = 0;
+  int outputFLG = 0, inputFLG = 0, backgroundFLG = 0;
   int fd, fdin;
   tokenlist *args = new_tokenlist();
+
+	if (strcmp(tokens->items[tokens->size - 1], "&") == 0 )
+	{
+		free(tokens->items[tokens->size -1]);
+		tokens->size -= 1;
+		backgroundFLG = 1;
+	}
+
+		if(backgroundFLG == 1)
+			printf("Background process\n");
+
   if (check_built(tokens->items[0]) == 0)
   {
     add_token(args, "temp");
@@ -199,10 +211,15 @@ void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs)
         else
         {	//in parent(main)
           if(outputFLG == 1)
-          close(fd);
+          	close(fd);
           if (inputFLG == 1)
-          close(fdin);
-          waitpid(pid,NULL,0);
+          	close(fdin);
+					if (backgroundFLG == 0)
+          	waitpid(pid,NULL,0);
+					else
+					{
+
+					}
           free(execFile);
           free_tokens(args);
           //free(argsL); not sure if this is needed
@@ -495,8 +512,8 @@ void change_directory(tokenlist * tokenptr)
 
 void print_jobs(tokenlist * token_ptr, int * numComs)		//not sure if this is right
 {
-	cmd_pid = fork();
-	printf(numComs, "+ ", cmd_pid);
+	// cmd_pid = fork();
+	// printf(numComs, "+ ", cmd_pid);
 }
 
 //changes all commands to full path for easier parsing
@@ -563,8 +580,19 @@ void echo(tokenlist * tokens)
   printf("\n");
 }
 
-int pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths, int * numComs)
+void pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths, int * numComs)
 {
+	int backgroundFLG = 0;
+	if (strcmp(token_ptr->items[token_ptr->size - 1], "&") == 0 )
+	{
+		free(token_ptr->items[token_ptr->size -1]);
+		token_ptr->size -= 1;
+		backgroundFLG = 1;
+	}
+
+		if (backgroundFLG == 1)
+			printf("Background process\n");
+
   int num_pipes = 0;
   int arr[2];
   tokenlist *com1 = new_tokenlist();
