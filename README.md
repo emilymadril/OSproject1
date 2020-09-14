@@ -1,6 +1,6 @@
 Members: Nolan Dyer, Alexandar Jen, Emily Madril
 
-Division of Labor: 
+Division of Labor:\n 
 Part 2:  Nolan Dyer
 Part 3:  Nolan Dyer
 Part 4:  Nolan Dyer, Alexandar Jen
