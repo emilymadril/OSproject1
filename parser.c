@@ -11,6 +11,16 @@ typedef struct {
   char **items;
 } tokenlist;
 
+typedef struct
+{
+  int procNum;
+  char *command;
+  int pids[3];
+  int done;
+} backlist;
+
+int globProcNum = 0;
+
 char *get_input(void);
 tokenlist *get_tokens(char *input);
 
@@ -19,7 +29,7 @@ void add_token(tokenlist *tokens, char *item);
 void free_tokens(tokenlist *tokens);
 //***********************************************
 
-void pathSearch(tokenlist *tokens, int loc, int *err, int *numComs);
+void pathSearch(tokenlist *tokens, int loc, int *err, int *numComs, backlist * process, char * input);
 void replaceTokens (tokenlist *tokens, int *error, tokenlist *paths);
 tokenlist *getPaths(void);
 
@@ -27,17 +37,17 @@ int path_resolution(char* file);
 void output_redirect(char* file);
 void input_redirect(char* file);
 
-void pipe_func(tokenlist * token_ptr, int * error, tokenlist *paths, int * numComs);
+void pipe_func(tokenlist * token_ptr, int * error, tokenlist *paths, int * numComs, backlist * process, char * input);
 int check_pipe(tokenlist* token_ptr);
 void absPath(tokenlist * tokens, int *error, tokenlist *paths);
 
 int check_built(char *);
-void built_in(tokenlist * token_ptr, int x, int * numComs);
+void built_in(tokenlist * token_ptr, int x, int * numComs, backlist * process);
 
 void exit_func(int * numComs);
 void change_directory(tokenlist * tknptr);
 void echo(tokenlist * token_ptr);
-void print_jobs(tokenlist * token_ptr, int * numComs);
+void print_jobs( backlist * process);
 
 int main()
 {
@@ -45,11 +55,11 @@ int main()
   int *numComs = malloc(sizeof(int));
 	int *pid1 = malloc(sizeof(int));
       *numComs = 0;
-
+  backlist process[11];
+  int jobDone = 0;
+  pid_t status;
   while (1)
   {
-
-
     *error = 0;
 
     printf("%s@%s : %s> ",getenv("USER"),getenv("MACHINE"),getenv("PWD"));	//Part 3: Prompt
@@ -66,21 +76,36 @@ int main()
     tokenlist *tokens = get_tokens(input);
     replaceTokens(tokens, error, paths);
     if(check_pipe(tokens) == 1)
-      pipe_func(tokens, error, paths, numComs);
+      pipe_func(tokens, error, paths, numComs, process, input);
 
     if (*error == 0)
     {
       for (int i = 0; i < tokens->size; i++)
       {
-        printf("token %d: (%s)\n", i, tokens->items[i]);
+        // printf("token %d: (%s)\n", i, tokens->items[i]);
 
         if(memchr(tokens->items[i], '/', strlen(tokens->items[i])) == NULL && i == 0 && check_pipe(tokens) == 0)
         {
-          pathSearch(tokens, i, error, numComs);
+          pathSearch(tokens, i, error, numComs, process, input);
         }
       }
     }
+    for (int i = 0; i < globProcNum; i++)
+    {
+      status = waitpid(process[i].pids[0], NULL, WNOHANG);
+      if(status != 0 && process[i].done == 0)
+      {
+        process[i].done = 1;
+        jobDone++;
+        printf("\n[%d] + [%s]\n", process[i].procNum, process[i].command);
+      }
+      if(jobDone == globProcNum)
+      {
+        jobDone = 0;
+        globProcNum = 0;
+      }
 
+    }
     // printf("numComs: %d\n", *numComs);
 
 
@@ -95,7 +120,7 @@ int main()
 }
 
 //Part 5-6: Path Search and ls execv
-void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs, pidlist * backgroundProcList)
+void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs, backlist * process, char *input)
 {
   char *outputFile = NULL;
   char *inputFile = NULL;
@@ -109,9 +134,6 @@ void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs, pidlist * ba
 		tokens->size -= 1;
 		backgroundFLG = 1;
 	}
-
-		if(backgroundFLG == 1)
-			printf("Background process\n");
 
   if (check_built(tokens->items[0]) == 0)
   {
@@ -218,7 +240,13 @@ void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs, pidlist * ba
           	waitpid(pid,NULL,0);
 					else
 					{
-
+            process[globProcNum].procNum = globProcNum + 1;
+            process[globProcNum].pids[0] = pid;
+            process[globProcNum].command = (char *) malloc(strlen(input) + 1);
+            process[globProcNum].done = 0;
+            strcpy(process[globProcNum].command, input);
+            printf("\n[%d]\t[%d]\n", process[globProcNum].procNum, process[globProcNum].pids[0]);
+            globProcNum++;
 					}
           free(execFile);
           free_tokens(args);
@@ -242,7 +270,7 @@ void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs, pidlist * ba
   else
   {
     *numComs+= 1;
-    built_in(tokens, tokens->size, numComs);
+    built_in(tokens, tokens->size, numComs, process);
   }
 }
 
@@ -447,7 +475,7 @@ tokenlist * getPaths(void)
 int check_built(char * command)									//part 10
 {
   if(strcmp(command, "exit") == 0 || strcmp(command, "cd") == 0 ||
-  		strcmp(command, "echo") == 0 || strcmp(command, "job") == 0)
+  		strcmp(command, "echo") == 0 || strcmp(command, "jobs") == 0)
   {
 	  return 1;
   }
@@ -455,7 +483,7 @@ int check_built(char * command)									//part 10
     return 0;
 }
 
-void built_in(tokenlist * token_ptr, int x, int *numComs)
+void built_in(tokenlist * token_ptr, int x, int *numComs, backlist *process)
 {
   if(strcmp(token_ptr->items[0], "exit") == 0)
   {
@@ -471,7 +499,7 @@ void built_in(tokenlist * token_ptr, int x, int *numComs)
   }
   if(strcmp(token_ptr->items[0], "jobs") == 0)
   {
-  	print_jobs(token_ptr, numComs);
+  	print_jobs(process);
   }
 
 }
@@ -503,15 +531,20 @@ void change_directory(tokenlist * tokenptr)
     else if(tokenptr->size > 2)         //user enters too many args
     {
         printf("Error. Too many arguments.\n");
-        *err = 2;
+        // *err = 2;
         return;
     }
 }
 
-void print_jobs(tokenlist * token_ptr, int * numComs)		//not sure if this is right
+void print_jobs(backlist *process)		//not sure if this is right
 {
-	// cmd_pid = fork();
-	// printf(numComs, "+ ", cmd_pid);
+	for (int i = 0; i < globProcNum; i++)
+  {
+    if(process[i].done == 0)
+    {
+      printf("[%d] + [%d][%s]\n", process[i].procNum, process[i].pids[0], process[i].command);
+    }
+  }
 }
 
 //changes all commands to full path for easier parsing
@@ -578,7 +611,7 @@ void echo(tokenlist * tokens)
   printf("\n");
 }
 
-void pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths, int * numComs)
+void pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths, int * numComs, backlist * process, char * input )
 {
 	int backgroundFLG = 0;
 	if (strcmp(token_ptr->items[token_ptr->size - 1], "&") == 0 )
@@ -587,9 +620,6 @@ void pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths, int * numCom
 		token_ptr->size -= 1;
 		backgroundFLG = 1;
 	}
-
-		if (backgroundFLG == 1)
-			printf("Background process\n");
 
   int num_pipes = 0;
   int arr[2];
@@ -694,8 +724,21 @@ void pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths, int * numCom
 					{
 						close(p_fds[1]);
 						close(p_fds[0]);
-						waitpid(pid1, NULL, 0);
-						waitpid(pid2, NULL, 0);
+            if(backgroundFLG == 0)
+            {
+              waitpid(pid1, NULL, 0);
+              waitpid(pid2, NULL, 0);
+            }
+            else
+            {
+              process[globProcNum].procNum = globProcNum + 1;
+              process[globProcNum].pids[0] = pid2;
+              process[globProcNum].command = (char *) malloc(strlen(input) + 1);
+              process[globProcNum].done = 0;
+              strcpy(process[globProcNum].command, input);
+              printf("\n[%d]\t[%d]\n", process[globProcNum].procNum, process[globProcNum].pids[0]);
+              globProcNum++;
+            }
 					}
 				}
 				else
@@ -736,9 +779,22 @@ void pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths, int * numCom
 						{
 							close(p_fds2[0]);
 							close(p_fds2[1]);
-							waitpid(pid1, NULL, 0);
-							waitpid(pid2, NULL, 0);
-							waitpid(pid3, NULL, 0);
+              if(backgroundFLG == 0)
+              {
+                waitpid(pid1, NULL, 0);
+                waitpid(pid2, NULL, 0);
+                waitpid(pid3, NULL, 0);
+              }
+              else
+              {
+                process[globProcNum].procNum = globProcNum + 1;
+                process[globProcNum].pids[0] = pid3;
+                process[globProcNum].done = 0;
+                process[globProcNum].command = (char *) malloc(strlen(input) + 1);
+                strcpy(process[globProcNum].command, input);
+                printf("\n[%d]\t[%d]\n", process[globProcNum].procNum, process[globProcNum].pids[0]);
+                globProcNum++;
+              }
 						}
 					}
 				}
