@@ -538,28 +538,10 @@ void absPath(tokenlist * tokens, int *error, tokenlist *paths)
   }
 }
 
-void echo(tokenlist * token_ptr)
+void echo(tokenlist * tokens)
 {
-  char * tempvar;
-  char * permvar;
-  char * var;
-  for (int i = 0; i < token_ptr->size; i++)
-  {
-    if(token_ptr->items[i][0] == '$')
-    {
-      tempvar = strtok(token_ptr->items[i], "$");
-      permvar = getenv(tempvar);
-
-      if(permvar != NULL)
-      {
-        printf("%s", permvar);
-      }
-    }
-    else
-    {
-      printf("%s", token_ptr->items[i]);
-    }
-  }
+  for (int i = 1; i < tokens->size; i++)printf("%s ",tokens->items[i]);
+  
   printf("\n");
 }
 
