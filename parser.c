@@ -20,7 +20,7 @@ void free_tokens(tokenlist *tokens);
 //***********************************************
 
 
-void pathSearch(tokenlist *tokens, int loc, int *err);
+void pathSearch(tokenlist *tokens, int loc, int *err, int *numComs);
 void replaceTokens (tokenlist *tokens, int *error, tokenlist *paths);
 tokenlist *getPaths(void);
 
@@ -28,21 +28,26 @@ int path_resolution(char* file);
 void output_redirect(char* file);
 void input_redirect(char* file);
 
-int pipe_func(tokenlist * token_ptr, int * error, tokenlist *paths);
+int pipe_func(tokenlist * token_ptr, int * error, tokenlist *paths, int * numComs);
 int check_pipe(tokenlist* token_ptr);
 void absPath(tokenlist * tokens, int *error, tokenlist *paths);
 
 int check_built(char *);
-void built_in(tokenlist * token_ptr, int x);
+void built_in(tokenlist * token_ptr, int x, int * numComs);
 
-void exit_func(int);
+void exit_func(int * numComs);
 void change_directory(tokenlist * tknptr);
 void echo(tokenlist * token_ptr);
 
 int main()
 {
-  while (1) {
-    int *error = malloc(sizeof(int));
+  int *error = malloc(sizeof(int));
+  int *numComs = malloc(sizeof(int));
+      *numComs = 0;
+  while (1)
+  {
+
+
     *error = 0;
 
     printf("%s@%s : %s> ",getenv("USER"),getenv("MACHINE"),getenv("PWD"));	//Part 3: Prompt
@@ -59,7 +64,7 @@ int main()
     tokenlist *tokens = get_tokens(input);
     replaceTokens(tokens, error, paths);
     if(check_pipe(tokens) == 1)
-      pipe_func(tokens, error, paths);
+      pipe_func(tokens, error, paths, numComs);
 
     if (*error == 0)
     {
@@ -69,26 +74,18 @@ int main()
 
         if(memchr(tokens->items[i], '/', strlen(tokens->items[i])) == NULL && i == 0 && check_pipe(tokens) == 0)
         {
-          pathSearch(tokens, i, error);
+          pathSearch(tokens, i, error, numComs);
         }
       }
     }
 
-    /*
-    if(check_built(tokens->items[0]) == 0)
-    {
-      fflush(0);
-      execute(&tokens->items[0]);
-    }
-    else
-    {
-      built_in(&tokens, tokens->size);
-    }
+    // printf("numComs: %d\n", *numComs);
+
 
     free(input);
     free_tokens(tokens);
     free_tokens(paths);
-    */
+
   }
 
 
@@ -96,7 +93,7 @@ int main()
 }
 
 //Part 5-6: Path Search and ls execv
-void pathSearch(tokenlist *tokens, int loc, int *err)
+void pathSearch(tokenlist *tokens, int loc, int *err, int* numComs)
 {
   char *outputFile = NULL;
   char *inputFile = NULL;
@@ -179,6 +176,7 @@ void pathSearch(tokenlist *tokens, int loc, int *err)
       //If there is a file that can be accessed = 0
       if(access(execFile,F_OK) == 0)
       {	//if found in path run command
+        *numComs+= 1;
         found = 1;
         int pid = fork();
         if(pid == 0)
@@ -225,7 +223,8 @@ void pathSearch(tokenlist *tokens, int loc, int *err)
   }
   else
   {
-    built_in(tokens, tokens->size);
+    *numComs+= 1;
+    built_in(tokens, tokens->size, numComs);
   }
 }
 
@@ -435,11 +434,11 @@ int check_built(char * command)									//part 10
     return 0;
 }
 
-void built_in(tokenlist * token_ptr, int x)
+void built_in(tokenlist * token_ptr, int x, int *numComs)
 {
   if(strcmp(token_ptr->items[0], "exit") == 0)
   {
-    exit_func(x);
+    exit_func(numComs);
   }
   if(strcmp(token_ptr->items[0], "cd") == 0)
   {
@@ -452,9 +451,10 @@ void built_in(tokenlist * token_ptr, int x)
 
 }
 
-void exit_func(int size)
+void exit_func(int * numComs)
 {
-    printf("Commands executed : %d\n", size);
+    printf("Commands executed : %d\n", *numComs);
+    free(numComs);
     exit(0);
 }
 
@@ -547,7 +547,7 @@ void echo(tokenlist * tokens)
   printf("\n");
 }
 
-int pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths)
+int pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths, int * numComs)
 {
   int num_pipes = 0;
   int arr[2];
@@ -658,6 +658,7 @@ int pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths)
 				}
 				else
 				{
+
 					int pid2 = fork();
 					if (pid2 == 0)
 					{
@@ -700,6 +701,10 @@ int pipe_func(tokenlist * token_ptr, int *error, tokenlist *paths)
 					}
 				}
       }
+      if(num_pipes == 1)
+        *numComs += 2;
+      else
+        *numComs += 3;
         free_tokens(com1);
         free_tokens(com2);
         free_tokens(com3);
