@@ -38,6 +38,7 @@ void built_in(tokenlist * token_ptr, int x, int * numComs);
 void exit_func(int * numComs);
 void change_directory(tokenlist * tknptr);
 void echo(tokenlist * token_ptr);
+void print_jobs(tokenlist * token_ptr, int * numComs);
 
 int main()
 {
@@ -428,8 +429,11 @@ tokenlist * getPaths(void)
 
 int check_built(char * command)									//part 10
 {
-  if(strcmp(command, "exit") == 0 || strcmp(command, "cd") == 0 || strcmp(command, "echo") == 0)
-    return 1;
+  if(strcmp(command, "exit") == 0 || strcmp(command, "cd") == 0 ||
+  		strcmp(command, "echo") == 0 || strcmp(command, "job") == 0)
+  {
+	  return 1;
+  }
   else
     return 0;
 }
@@ -447,6 +451,10 @@ void built_in(tokenlist * token_ptr, int x, int *numComs)
   if(strcmp(token_ptr->items[0], "echo") == 0)
   {
     echo(token_ptr);
+  }
+  if(strcmp(token_ptr->items[0], "jobs") == 0)
+  {
+  	print_jobs(token_ptr, numComs);
   }
 
 }
@@ -484,6 +492,13 @@ void change_directory(tokenlist * tokenptr)
 
     }*/
 }
+
+void print_jobs(tokenlist * token_ptr, int * numComs)		//not sure if this is right
+{
+	cmd_pid = fork();
+	printf(numComs, "+ ", cmd_pid);
+}
+
 //changes all commands to full path for easier parsing
 void absPath(tokenlist * tokens, int *error, tokenlist *paths)
 {
