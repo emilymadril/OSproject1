@@ -454,6 +454,7 @@ void built_in(tokenlist * token_ptr, int x, int *numComs)
 void exit_func(int * numComs)
 {
     printf("Commands executed : %d\n", *numComs);
+    waitpid(-1,NULL,0);
     free(numComs);
     exit(0);
 }
