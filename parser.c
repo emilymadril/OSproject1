@@ -462,11 +462,13 @@ void change_directory(tokenlist * tokenptr)
 {
     char* newdirectory = (char*) calloc(100, 100);
 
-    if(tokenptr->size == 1)             //user enters cd
+    if(tokenptr->size == 2)             //user enters cd
     {
-        char* homedir = getenv("HOME");
-        chdir(homedir);
-        setenv("PWD", homedir, 1);
+      chdir(tokenptr->items[1]);
+      char* curWD = (char * ) malloc(strlen(getcwd(NULL,0)) + 1);
+      strcpy(curWD, getcwd(NULL, 0));
+      setenv("PWD", curWD, 1);
+      free(curWD);
     }
 
     else if(tokenptr->size > 2)         //user enters too many args
