@@ -20,15 +20,18 @@ part 9:  Alexandar Jen
 
 part 10: Emily Madril, Alexandar Jen, Nolan Dyer
 
-Contents of tar archive: parser.c (source code), makefile, and README
+Contents of tar archive: parser.c (source code), makefile, README, and gitlogs.docx
 
   parser.c: Contains all the code for the shell to work.
   README:   Contains the team members, divisions of labor, compile directions, bugs, and special considerations.
   makefile: Contains script to compile parser.c and create an executable called shell
+  gitlogs.docx: Contains pictures of all the git commits from the project
   
 Compile directions:
 
-  1.) extract the tar file into an empty folder on tectia, make sure you're on linprog
+  1.) File transfer .tar into empty folder on tectia's linprog server
+  
+  2.) enter "tar -xvf *.tar" to extract the tar file
   
   2.) enter "make" on the command line
   
